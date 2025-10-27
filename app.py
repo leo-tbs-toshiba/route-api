@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify
 import math
+import os
 
 app = Flask(__name__)
 
@@ -7,10 +8,12 @@ app = Flask(__name__)
 def home():
     return "✅ Flask app is running on Render!", 200
 
+
 # === CONFIG ===
 HO_LATITUDE = 42.553203
 HO_LONGITUDE = -82.9336493
 HO_COORD = (HO_LATITUDE, HO_LONGITUDE)
+
 
 # === FUNCTIONS ===
 def haversine(coord1, coord2):
@@ -24,13 +27,14 @@ def haversine(coord1, coord2):
     d_phi = math.radians(lat2 - lat1)
     d_lambda = math.radians(lon2 - lon1)
 
-    a = math.sin(d_phi/2)**2 + math.cos(phi1)*math.cos(phi2)*math.sin(d_lambda/2)**2
-    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
+    a = math.sin(d_phi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(d_lambda / 2) ** 2
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
     return R * c
 
+
 def nearest_neighbor(points, start_coord):
-    """Return nearest neighbor route order (list of indices) starting from a fixed HQ point."""
+    """Return nearest neighbor route order (list of indices) starting from HQ, but HQ is not in result."""
     n = len(points)
     visited = [False] * n
     route = []
@@ -50,6 +54,7 @@ def nearest_neighbor(points, start_coord):
         current_coord = points[nearest]
 
     return route
+
 
 # === ROUTE ===
 @app.route('/optimize', methods=['POST'])
@@ -74,7 +79,7 @@ def optimize():
     if not cleaned:
         return jsonify({"message": "No valid coordinates provided"}), 400
 
-    # 🚀 Compute route starting from HQ
+    # 🚀 Compute route starting from HQ (but exclude HQ from output)
     route_order = nearest_neighbor(cleaned, HO_COORD)
 
     # 🔢 Build ordered response list
@@ -87,22 +92,12 @@ def optimize():
         for idx, i in enumerate(route_order)
     ]
 
-    # 🏠 Include HQ at start
-    hq_point = {
-        "latitude": HO_LATITUDE,
-        "longitude": HO_LONGITUDE,
-        "order": 0,
-        "label": "HQ"
-    }
-
     return jsonify({
-        "start": hq_point,
-        "route": [hq_point] + ordered_points,
-        "route_order": ["HQ"] + route_order
+        "route": ordered_points,
+        "route_order": route_order
     })
 
+
 if __name__ == "__main__":
-    import os
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
-

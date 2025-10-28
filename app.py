@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify
 import math
 import os
+import re
 
 app = Flask(__name__)
 
@@ -59,27 +60,43 @@ def nearest_neighbor(points, start_coord):
 # === ROUTE ===
 @app.route('/optimize', methods=['POST'])
 def optimize():
-    data = request.get_json()
+    content_type = request.headers.get('Content-Type', '').lower()
 
-    if not data or "locations" not in data:
-        return jsonify({"message": "Send POST /optimize with JSON {locations:[{latitude,longitude}]}"}), 400
-
-    locations = data["locations"]
-
-    # 🧹 Filter out invalid coordinates
     cleaned = []
-    for loc in locations:
-        try:
-            lat = float(loc["latitude"])
-            lon = float(loc["longitude"])
-            cleaned.append((lat, lon))
-        except (TypeError, ValueError, KeyError):
-            continue
 
-    if not cleaned:
-        return jsonify({"message": "No valid coordinates provided"}), 400
+    if 'application/json' in content_type:
+        data = request.get_json()
+        if not data or "locations" not in data:
+            return jsonify({"message": "Send POST /optimize with JSON {locations:[{latitude,longitude}]}"}), 400
 
-    # 🚀 Compute route starting from HQ (but exclude HQ from output)
+        for loc in data["locations"]:
+            try:
+                lat = float(loc["latitude"])
+                lon = float(loc["longitude"])
+                cleaned.append((lat, lon))
+            except (TypeError, ValueError, KeyError):
+                continue
+
+    elif 'text/plain' in content_type:
+        text_data = request.data.decode('utf-8')
+        # Match lines like: "1: latitude=GV_lat1, longitude=GV_lon1"
+        pattern = r'latitude=([-\d.]+), longitude=([-\d.]+)'
+        matches = re.findall(pattern, text_data)
+        for lat_str, lon_str in matches:
+            try:
+                lat = float(lat_str)
+                lon = float(lon_str)
+                cleaned.append((lat, lon))
+            except ValueError:
+                continue
+
+        if not cleaned:
+            return jsonify({"message": "No valid coordinates found in plain text"}), 400
+
+    else:
+        return jsonify({"message": f"Unsupported Content-Type: {content_type}"}), 415
+
+    # 🚀 Compute route starting from HQ
     route_order = nearest_neighbor(cleaned, HO_COORD)
 
     # 🔢 Build ordered response list

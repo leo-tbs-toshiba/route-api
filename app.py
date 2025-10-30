@@ -114,6 +114,29 @@ def optimize():
         "route_order": route_order
     })
 
+@app.route('/distance', methods=['POST'])
+def distance():
+    """Compute straight-line distance between two coordinates."""
+    data = request.get_json()
+
+    try:
+        lat1 = float(data['lat1'])
+        lon1 = float(data['lon1'])
+        lat2 = float(data['lat2'])
+        lon2 = float(data['lon2'])
+    except (TypeError, ValueError, KeyError):
+        return jsonify({"error": "Invalid input. Send JSON with lat1, lon1, lat2, lon2."}), 400
+
+    dist_miles = haversine((lat1, lon1), (lat2, lon2))
+    dist_km = dist_miles * 1.60934
+
+    return jsonify({
+        "distance_miles": round(dist_miles, 3),
+        "distance_km": round(dist_km, 3),
+        "point1": {"latitude": lat1, "longitude": lon1},
+        "point2": {"latitude": lat2, "longitude": lon2}
+    })
+
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))

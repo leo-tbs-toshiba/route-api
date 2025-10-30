@@ -116,25 +116,23 @@ def optimize():
 
 @app.route('/distance', methods=['POST'])
 def distance():
-    """Compute straight-line distance between two coordinates."""
+    """Compute straight-line distance from HQ to a given coordinate."""
     data = request.get_json()
 
     try:
-        lat1 = float(data['lat1'])
-        lon1 = float(data['lon1'])
-        lat2 = float(data['lat2'])
-        lon2 = float(data['lon2'])
+        lat2 = float(data['lat'])
+        lon2 = float(data['lon'])
     except (TypeError, ValueError, KeyError):
-        return jsonify({"error": "Invalid input. Send JSON with lat1, lon1, lat2, lon2."}), 400
+        return jsonify({"error": "Invalid input. Send JSON with 'lat' and 'lon' for the destination point."}), 400
 
-    dist_miles = haversine((lat1, lon1), (lat2, lon2))
+    dist_miles = haversine(HO_COORD, (lat2, lon2))
     dist_km = dist_miles * 1.60934
 
     return jsonify({
-        "distance_miles": round(dist_miles, 3),
-        "distance_km": round(dist_km, 3),
-        "point1": {"latitude": lat1, "longitude": lon1},
-        "point2": {"latitude": lat2, "longitude": lon2}
+        "distance_miles": round(dist_miles, 2),  # <-- 2 decimal places
+        "distance_km": round(dist_km, 3),        # keeping km with 3 decimals
+        "HQ": {"latitude": HO_COORD[0], "longitude": HO_COORD[1]},
+        "destination": {"latitude": lat2, "longitude": lon2}
     })
 
 
